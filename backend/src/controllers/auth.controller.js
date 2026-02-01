@@ -40,11 +40,8 @@ const registerUser = async (req, res) => {
         const salt = await bcrypt.genSalt(10);
         const password_hash = await bcrypt.hash(password, salt);
 
-        // Generate OTP
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
-        const otpExpiresAt = new Date(Date.now() + 10 * 60000); // 10 mins
-
-        // Fix: Use correct column names from migration
+        const otpExpiresAt = new Date(Date.now() + 10 * 60000); 
         const newUser = await pool.query(
             `INSERT INTO users (roll_number, name, institute_email, mobile_number, room_number, selfie_url, password_hash, email_otp, email_otp_expires_at, is_email_verified) 
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, FALSE) RETURNING id, roll_number, name, institute_email, mobile_number, room_number, role, is_verified, created_at`,
@@ -53,7 +50,7 @@ const registerUser = async (req, res) => {
 
         const createdUser = newUser.rows[0];
 
-        // Send OTP Email
+        
         const emailSubject = "Verify your Email - CarryCampus";
         const emailBody = `
             <h2>Hi ${createdUser.name},</h2>
@@ -86,7 +83,7 @@ const registerAdmin = async (req, res) => {
             return res.status(403).json({ status: "failed", message: "Invalid Admin Secret Key" });
         }
 
-        // ... (Similar validation but skip room count maybe? Let's keep it robust)
+       
         if (!roll_number || !name || !institute_email || !mobile_number || !password) {
             return res.status(400).json({ status: "failed", message: "All fields are required" });
         }
@@ -103,7 +100,7 @@ const registerAdmin = async (req, res) => {
         const salt = await bcrypt.genSalt(10);
         const password_hash = await bcrypt.hash(password, salt);
 
-        // Force Role = ADMIN and Verified = true
+        
         const newUser = await pool.query(
             `INSERT INTO users (roll_number, name, institute_email, mobile_number, room_number, password_hash, role, is_verified, verification_status) 
              VALUES ($1, $2, $3, $4, $5, $6, 'ADMIN', true, 'verified') RETURNING id, name, institute_email, role`,
@@ -203,7 +200,7 @@ const changePassword = async (req, res) => {
             return res.status(400).json({ status: "failed", message: "Both old and new passwords are required" });
         }
 
-        // Get user's current password hash
+        
         const userResult = await pool.query("SELECT password_hash FROM users WHERE id = $1", [userId]);
         if (userResult.rows.length === 0) {
             return res.status(404).json({ status: "failed", message: "User not found" });
@@ -211,17 +208,17 @@ const changePassword = async (req, res) => {
 
         const user = userResult.rows[0];
 
-        // Verify Old Password
+        
         const isPasswordValid = await bcrypt.compare(oldPassword, user.password_hash);
         if (!isPasswordValid) {
             return res.status(400).json({ status: "failed", message: "Incorrect old password" });
         }
 
-        // Hash New Password
+       
         const salt = await bcrypt.genSalt(10);
         const newPasswordHash = await bcrypt.hash(newPassword, salt);
 
-        // Update Password
+        
         await pool.query("UPDATE users SET password_hash = $1 WHERE id = $2", [newPasswordHash, userId]);
 
         res.status(200).json({ status: "success", message: "Password updated successfully" });
